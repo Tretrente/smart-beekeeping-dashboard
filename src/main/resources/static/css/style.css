@@ -1,0 +1,21 @@
+.container {
+    padding-top: 20px;
+}
+
+h1 {
+    text-align: center;
+    font-size: 2.5rem;
+    margin-bottom: 1rem;
+}
+
+canvas {
+    background-color: #f8f9fa;
+    border: 1px solid #dee2e6;
+    border-radius: 8px;
+    padding: 10px;
+}
+
+#loadDataBtn {
+    display: block;
+    margin: 0 auto;
+}

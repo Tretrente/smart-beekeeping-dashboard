@@ -35,22 +35,72 @@
         <div class="col-md-4">
             <label for="hiveSelect" class="form-label">Select Hive(s)</label>
             <select id="hiveSelect" class="form-select" multiple>
-                <!-- These should match your tagNumber values: hive1, hive2, … hive10 -->
-                <option value="hive1" selected>hive1</option>
-                <option value="hive2" selected>hive2</option>
-                <option value="hive3" selected>hive3</option>
-                <option value="hive4" selected>hive4</option>
-                <option value="hive5" selected>hive5</option>
-                <option value="hive6" selected>hive6</option>
-                <option value="hive7" selected>hive7</option>
-                <option value="hive8" selected>hive8</option>
-                <option value="hive9" selected>hive9</option>
-                <option value="hive10" selected>hive10</option>
+                <option value="6"    selected>6</option>
+                <option value="3627" selected>3627</option>
+                <option value="3628" selected>3628</option>
+                <option value="3629" selected>3629</option>
+                <option value="3631" selected>3631</option>
+                <option value="3640" selected>3640</option>
+                <option value="3690" selected>3690</option>
+                <option value="3691" selected>3691</option>
+                <option value="3692" selected>3692</option>
+                <option value="3693" selected>3693</option>
+
             </select>
+
         </div>
     </div>
 
     <button id="loadDataBtn" class="btn btn-primary mb-4">Load 2021 Data</button>
+
+    <!-- ▷ Overview KPI Cards ◁ -->
+    <div class="row mb-4" id="kpi-overview">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">Total Honey Yield (kg)</h5>
+                    <p class="card-text display-6" id="kpi-honey-yield">–</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">Avg. Colony Size</h5>
+                    <p class="card-text display-6" id="kpi-avg-colony-size">–</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">Avg. Brood-to-Adult Ratio</h5>
+                    <p class="card-text display-6" id="kpi-avg-brood-ratio">–</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title">Queen-Right %</h5>
+                    <p class="card-text display-6" id="kpi-qr-percent">–</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mb-5">
+        <div class="col-md-6">
+            <h4>Monthly Honey Yield</h4>
+            <canvas id="honeyYieldChart" width="600" height="300"></canvas>
+        </div>
+        <div class="col-md-6">
+            <h4>Health Index per Hive</h4>
+            <canvas id="healthIndexChart" width="600" height="300"></canvas>
+        </div>
+    </div>
+
+
 
     <!-- Row 1: Environmental Charts -->
     <div class="row mb-5">

@@ -1,471 +1,473 @@
-// File: dashboard.js
-// Description: Fetch 2021 UrBAN data from backend and render all charts.
+// Description: Fetches 2021 UrBAN data and renders interactive charts and KPI cards.
 
-// ------------------------
-// DOM Elements
-// ------------------------
-const loadDataBtn = document.getElementById('loadDataBtn');
-const startDateInput = document.getElementById('startDate');
-const endDateInput = document.getElementById('endDate');
-const hiveSelect = document.getElementById('hiveSelect');
+/* ------------------------
+   Global chart variables
+------------------------ */
+let tempHumChart = null;
+let precipChart = null;
+let framesChart = null;
+let colonyChart = null;
+let queenStatusChart = null;
+let broodAdultChart = null;
+let honeyYieldChart = null;
+let healthIndexChart = null;
 
-let tempHumChart, precipChart, framesChart, colonyChart, queenStatusChart, broodAdultChart;
+/* ------------------------
+   DOM element references
+------------------------ */
+const loadDataBtn     = document.getElementById('loadDataBtn');
+const startDateInput  = document.getElementById('startDate');
+const endDateInput    = document.getElementById('endDate');
+const hiveSelect      = document.getElementById('hiveSelect');
 
 /**
- * Parse a YYYY-MM-DD string into LocalDateTime at midnight.
- * @param {string} dateStr
- * @returns {string} ISO string "2021-06-01T00:00:00"
+ * Convert a YYYY-MM-DD string to an ISO timestamp at midnight.
+ * @param {string} dateStr - Date in YYYY-MM-DD format.
+ * @returns {string} ISO timestamp string "YYYY-MM-DDT00:00:00.000Z"
  */
 function toMidnightISO(dateStr) {
-    // Create a Date object at midnight of that day
     const dt = new Date(dateStr + 'T00:00:00');
     return dt.toISOString();
 }
 
+/* ------------------------
+   Data fetching functions
+------------------------ */
+
 /**
- * Fetch all weather records for 2021.
- * Endpoint returns List<WeatherRecord>.
- * @returns {Promise<Array>}
+ * Fetch simulated environmental data between two timestamps.
+ * @returns {Promise<Array>} Array of EnvironmentalData objects.
  */
 async function fetchWeatherData() {
-    const response = await fetch('/api/urban/environmental'); // assuming this endpoint returns WeatherRecord[]
-    if (!response.ok) {
-        throw new Error('Failed to load weather data');
-    }
-    return await response.json();
+    const url = `/api/environmental?start=${encodeURIComponent(toMidnightISO(startDateInput.value))}` +
+        `&end=${encodeURIComponent(toMidnightISO(endDateInput.value))}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Failed to load environmental data');
+    return response.json();
 }
 
 /**
- * Fetch all sensor records for 2021.
- * Endpoint returns List<SensorRecord>.
- * @returns {Promise<Array>}
+ * Fetch simulated production data between two timestamps for selected hives.
+ * @returns {Promise<Array>} Array of ProductionData objects.
  */
 async function fetchSensorData() {
-    const response = await fetch('/api/urban/sensors');
-    if (!response.ok) {
-        throw new Error('Failed to load sensor data');
-    }
-    return await response.json();
+    const hiveIds = Array.from(hiveSelect.selectedOptions).map(opt => opt.value).join(',');
+    const url = `/api/production?start=${encodeURIComponent(toMidnightISO(startDateInput.value))}` +
+        `&end=${encodeURIComponent(toMidnightISO(endDateInput.value))}` +
+        `&hives=${encodeURIComponent(hiveIds)}`;
+    const response = await fetch(url);
+    if (!response.ok) throw new Error('Failed to load production data');
+    return response.json();
 }
 
 /**
- * Fetch all 2021 inspections for 2021.
- * Endpoint returns List<Inspection2021Record>.
- * @returns {Promise<Array>}
+ * Fetch real inspection data for 2021 from UrBAN dataset.
+ * @returns {Promise<Array>} Array of Inspection2021Record objects.
  */
 async function fetchInspectionData() {
     const response = await fetch('/api/urban/inspections/2021');
-    if (!response.ok) {
-        throw new Error('Failed to load inspection data');
-    }
-    return await response.json();
+    if (!response.ok) throw new Error('Failed to load inspection data');
+    return response.json();
 }
 
 /**
- * Render Temperature & Humidity Over Time (Line Chart).
- * Uses combined weather+sensor or just weather, depending on data ordering.
- * @param {Array} weatherData Array of WeatherRecord { dateTime, temperature, humidity, precipitation }
+ * Fetch real weather data for 2021 from UrBAN dataset.
+ * @returns {Promise<Array>} Array of WeatherRecord objects.
+ */
+async function fetchUrbanWeather() {
+    const response = await fetch('/api/urban/environmental');
+    if (!response.ok) throw new Error('Failed to load urban weather data');
+    return response.json();
+}
+
+/* ------------------------
+   KPI panel functions
+------------------------ */
+
+/**
+ * Populate KPI cards: total honey yield, average colony size,
+ * average brood-to-adult ratio, and percentage of queen-right hives.
+ * @param {Array} inspections - Array of inspection records.
+ */
+function populateKPIs(inspections) {
+    // 1) Total Honey Yield (kg): assume 1 frame ≈ 1.5 kg
+    const totalFrames = inspections.reduce((sum, r) => sum + r.framesOfHoney, 0);
+    const honeyKg = (totalFrames * 1.5).toFixed(1);
+    document.getElementById('kpi-honey-yield').textContent = honeyKg;
+
+    // 2) Average Colony Size
+    const avgColSize = (inspections.reduce((sum, r) => sum + r.colonySize, 0) / inspections.length).toFixed(1);
+    document.getElementById('kpi-avg-colony-size').textContent = avgColSize;
+
+    // 3) Average Brood-to-Adult Ratio (percentage)
+    const ratios = inspections.map(r => {
+        const adult = r.fob1st + r.fob2nd + r.fob3rd;
+        return adult > 0 ? r.foBrood / adult : 0;
+    });
+    const avgRatioPct = Math.round((ratios.reduce((s, x) => s + x, 0) / ratios.length) * 100) + '%';
+    document.getElementById('kpi-avg-brood-ratio').textContent = avgRatioPct;
+
+    // 4) Queen-Right percentage
+    const qrCount = inspections.filter(r => r.queenStatus === 'QR').length;
+    const qrPercent = Math.round((qrCount / inspections.length) * 100) + '%';
+    document.getElementById('kpi-qr-percent').textContent = qrPercent;
+}
+
+/* ------------------------
+   Chart rendering functions
+------------------------ */
+
+/**
+ * Render temperature and humidity as a dual-axis line chart.
+ * @param {Array} weatherData - Array of WeatherRecord.
  */
 function renderTempHumChart(weatherData) {
-    // Sort by timestamp
     weatherData.sort((a, b) => new Date(a.dateTime) - new Date(b.dateTime));
-
     const labels = weatherData.map(r => new Date(r.dateTime).toLocaleString());
-    const temps = weatherData.map(r => r.temperature);
-    const hums = weatherData.map(r => r.humidity);
+    const temps  = weatherData.map(r => r.temperature);
+    const hums   = weatherData.map(r => r.humidity);
 
     const ctx = document.getElementById('tempHumChart').getContext('2d');
-    if (tempHumChart) {
-        tempHumChart.destroy();
-    }
+    if (tempHumChart) tempHumChart.destroy();
     tempHumChart = new Chart(ctx, {
         type: 'line',
-        data: {
-            labels: labels,
-            datasets: [
+        data: { labels, datasets: [
                 {
                     label: 'Temperature (°C)',
                     data: temps,
-                    borderColor: 'rgba(255, 99, 132, 1)',
-                    backgroundColor: 'rgba(255, 99, 132, 0.2)',
+                    borderColor: 'rgba(255,99,132,1)',
                     yAxisID: 'yTemp',
                     tension: 0.2
                 },
                 {
                     label: 'Humidity (%)',
                     data: hums,
-                    borderColor: 'rgba(54, 162, 235, 1)',
-                    backgroundColor: 'rgba(54, 162, 235, 0.2)',
+                    borderColor: 'rgba(54,162,235,1)',
                     yAxisID: 'yHum',
                     tension: 0.2
                 }
-            ]
-        },
+            ]},
         options: {
             responsive: true,
             scales: {
-                yTemp: {
-                    type: 'linear',
-                    position: 'left',
-                    title: { display: true, text: 'Temperature (°C)' }
-                },
-                yHum: {
-                    type: 'linear',
-                    position: 'right',
-                    title: { display: true, text: 'Humidity (%)' },
-                    grid: { drawOnChartArea: false }
-                }
-            },
-            interaction: { mode: 'index', intersect: false },
-            plugins: {
-                tooltip: { enabled: true }
+                yTemp: { type: 'linear', position: 'left', title: { display: true, text: '°C' } },
+                yHum:  { type: 'linear', position: 'right', title: { display: true, text: '%' },
+                    grid: { drawOnChartArea: false } }
             }
         }
     });
 }
 
 /**
- * Render Precipitation Over Time (Bar Chart).
- * @param {Array} weatherData Array of WeatherRecord
+ * Render precipitation as a bar chart.
+ * @param {Array} weatherData - Array of WeatherRecord.
  */
 function renderPrecipChart(weatherData) {
     const labels = weatherData.map(r => new Date(r.dateTime).toLocaleDateString());
-    const precs = weatherData.map(r => r.precipitation);
+    const data   = weatherData.map(r => r.precipitation);
 
     const ctx = document.getElementById('precipChart').getContext('2d');
-    if (precipChart) {
-        precipChart.destroy();
-    }
+    if (precipChart) precipChart.destroy();
     precipChart = new Chart(ctx, {
         type: 'bar',
         data: {
-            labels: labels,
+            labels,
             datasets: [{
                 label: 'Precipitation (mm)',
-                data: precs,
-                backgroundColor: 'rgba(75, 192, 192, 0.5)',
-                borderColor: 'rgba(75, 192, 192, 1)',
-                borderWidth: 1
+                data,
+                backgroundColor: 'rgba(75,192,192,0.5)'
             }]
         },
         options: {
             responsive: true,
             scales: {
                 x: { title: { display: true, text: 'Date' } },
-                y: { title: { display: true, text: 'Precipitation (mm)' } }
-            },
-            plugins: {
-                tooltip: { enabled: true }
+                y: { title: { display: true, text: 'mm' } }
             }
         }
     });
 }
 
 /**
- * Render Frames of Honey per Hive (Grouped Bar Chart).
- * @param {Array} inspections Array of Inspection2021Record
- * @param {Array} selectedHives Array of hive IDs (tagNumber) to include
+ * Render frames of honey per hive as a grouped bar chart.
+ * @param {Array} inspections - Array of Inspection2021Record.
+ * @param {Array} selectedHives - Array of hive IDs to include.
  */
 function renderFramesChart(inspections, selectedHives) {
-    // Group by date, then by hive:
-    const dateMap = {}; // date (string) -> { hive1: frames, hive2: frames, ... }
+    // Aggregate frames by date and hive
+    const dateMap = {};
     inspections.forEach(r => {
-        const dateKey = r.date; // "2021-06-15"
-        if (!dateMap[dateKey]) {
-            dateMap[dateKey] = {};
-        }
+        if (!dateMap[r.date]) dateMap[r.date] = {};
         if (selectedHives.includes(r.tagNumber)) {
-            dateMap[dateKey][r.tagNumber] = r.framesOfHoney;
+            dateMap[r.date][r.tagNumber] = r.framesOfHoney;
         }
     });
-
-    const dates = Object.keys(dateMap).sort((a, b) => new Date(a) - new Date(b));
-    const datasets = [];
-
-    selectedHives.forEach((hiveId, idx) => {
-        const dataPoints = dates.map(dateKey => dateMap[dateKey][hiveId] || 0);
-        datasets.push({
-            label: hiveId,
-            data: dataPoints,
-            backgroundColor: `hsl(${(idx * 40) % 360}, 70%, 50%)`
-        });
-    });
+    const dates = Object.keys(dateMap).sort((a,b) => new Date(a) - new Date(b));
+    const datasets = selectedHives.map((hiveId, idx) => ({
+        label: hiveId,
+        data: dates.map(d => dateMap[d][hiveId] || 0),
+        backgroundColor: `hsl(${idx*40 % 360}, 70%, 50%)`
+    }));
 
     const ctx = document.getElementById('framesChart').getContext('2d');
-    if (framesChart) {
-        framesChart.destroy();
-    }
+    if (framesChart) framesChart.destroy();
     framesChart = new Chart(ctx, {
         type: 'bar',
-        data: {
-            labels: dates,
-            datasets: datasets
-        },
+        data: { labels: dates, datasets },
         options: {
             responsive: true,
-            scales: {
-                x: { stacked: true, title: { display: true, text: 'Inspection Date' } },
-                y: { stacked: false, title: { display: true, text: 'Frames of Honey' } }
-            },
-            plugins: {
-                tooltip: { mode: 'index', intersect: false }
-            }
+            scales: { x: { stacked: false }, y: { title: { text: 'Frames of Honey' } } }
         }
     });
 }
 
 /**
- * Render Colony Size (Brood Frames) per Hive (Line Chart).
- * @param {Array} inspections Array of Inspection2021Record
- * @param {Array} selectedHives Array of hive IDs to include
+ * Render colony size (brood frames) per hive as a line chart.
+ * @param {Array} inspections - Array of Inspection2021Record.
+ * @param {Array} selectedHives - Array of hive IDs to include.
  */
 function renderColonyChart(inspections, selectedHives) {
-    // Group by date, then by hive:
-    const dateMap = {}; // date -> { hive1: colonySize, hive2: colonySize, ... }
+    // Aggregate brood frames by date and hive
+    const dateMap = {};
     inspections.forEach(r => {
-        const dateKey = r.date; // "2021-06-15"
-        if (!dateMap[dateKey]) {
-            dateMap[dateKey] = {};
-        }
+        if (!dateMap[r.date]) dateMap[r.date] = {};
         if (selectedHives.includes(r.tagNumber)) {
-            dateMap[dateKey][r.tagNumber] = r.colonySize;
+            dateMap[r.date][r.tagNumber] = r.foBrood;
         }
     });
-
-    const dates = Object.keys(dateMap).sort((a, b) => new Date(a) - new Date(b));
-    const datasets = [];
-
-    selectedHives.forEach((hiveId, idx) => {
-        const dataPoints = dates.map(dateKey => dateMap[dateKey][hiveId] || 0);
-        datasets.push({
-            label: hiveId,
-            data: dataPoints,
-            borderColor: `hsl(${(idx * 40 + 180) % 360}, 70%, 40%)`,
-            fill: false,
-            tension: 0.2
-        });
-    });
+    const dates = Object.keys(dateMap).sort((a,b) => new Date(a) - new Date(b));
+    const datasets = selectedHives.map((hiveId, idx) => ({
+        label: hiveId,
+        data: dates.map(d => dateMap[d][hiveId] || 0),
+        borderColor: `hsl(${(idx*40+180) % 360}, 70%, 40%)`,
+        fill: false, tension: 0.2
+    }));
 
     const ctx = document.getElementById('colonyChart').getContext('2d');
-    if (colonyChart) {
-        colonyChart.destroy();
-    }
+    if (colonyChart) colonyChart.destroy();
     colonyChart = new Chart(ctx, {
         type: 'line',
-        data: {
-            labels: dates,
-            datasets: datasets
-        },
+        data: { labels: dates, datasets },
         options: {
             responsive: true,
-            scales: {
-                x: { title: { display: true, text: 'Inspection Date' } },
-                y: { title: { display: true, text: 'Colony Size (Brood Frames)' } }
-            },
-            plugins: {
-                tooltip: { mode: 'index', intersect: false }
-            }
+            scales: { y: { title: { text: 'Brood Frames' } } }
         }
     });
 }
 
 /**
- * Render Queen Status Distribution (Pie Chart).
- * @param {Array} inspections Array of Inspection2021Record
+ * Render queen status distribution as a pie chart.
+ * @param {Array} inspections - Array of Inspection2021Record.
  */
 function renderQueenStatusChart(inspections) {
-    // Count statuses
     const counts = {};
     inspections.forEach(r => {
         const status = r.queenStatus || 'Unknown';
         counts[status] = (counts[status] || 0) + 1;
     });
-
     const labels = Object.keys(counts);
-    const dataPoints = labels.map(l => counts[l]);
-    const bgColors = labels.map((_, idx) => `hsl(${(idx * 60) % 360}, 70%, 50%)`);
+    const data   = labels.map(l => counts[l]);
 
     const ctx = document.getElementById('queenStatusChart').getContext('2d');
-    if (queenStatusChart) {
-        queenStatusChart.destroy();
-    }
+    if (queenStatusChart) queenStatusChart.destroy();
     queenStatusChart = new Chart(ctx, {
         type: 'pie',
-        data: {
-            labels: labels,
-            datasets: [{
-                data: dataPoints,
-                backgroundColor: bgColors
-            }]
-        },
-        options: {
-            responsive: true,
-            plugins: {
-                tooltip: { enabled: true }
-            }
-        }
+        data: { labels, datasets: [{ data, backgroundColor: labels.map((_,i)=>`hsl(${i*60},70%,50%)`) }] },
     });
 }
 
 /**
- * Render Brood vs. Adult Frames (Stacked Bar Chart).
- * - Adult Frames = Fob1st + Fob2nd + Fob3rd
- * - Brood Frames = FoBrood
- * @param {Array} inspections Array of Inspection2021Record
- * @param {Array} selectedHives Array of hive IDs to include
+ * Render brood vs adult frames as a stacked bar chart.
+ * @param {Array} inspections - Array of Inspection2021Record.
+ * @param {Array} selectedHives - Array of hive IDs to include.
  */
 function renderBroodAdultChart(inspections, selectedHives) {
-    // Group by date, then per hive compute adult vs brood
-    const dateMap = {}; // date -> { hive1: {brood, adult}, hive2: {...}, ... }
+    const dateMap = {};
     inspections.forEach(r => {
-        const dateKey = r.date; // "2021-06-15"
-        if (!dateMap[dateKey]) {
-            dateMap[dateKey] = {};
-        }
+        if (!dateMap[r.date]) dateMap[r.date] = {};
         if (selectedHives.includes(r.tagNumber)) {
-            const adultFrames = r.fob1st + r.fob2nd + r.fob3rd;
-            const broodFrames = r.foBrood;
-            dateMap[dateKey][r.tagNumber] = { adult: adultFrames, brood: broodFrames };
+            const adult = r.fob1st + r.fob2nd + r.fob3rd;
+            dateMap[r.date][r.tagNumber] = { adult, brood: r.foBrood };
         }
     });
-
-    const dates = Object.keys(dateMap).sort((a, b) => new Date(a) - new Date(b));
-    // We will make one dataset for “Adult Frames” (stack: 'frames') and one for “Brood Frames” (stack: 'frames'),
-    // but Chart.js requires separate dataset entries per hive per “stack type”. Instead, we’ll create two dataset groups per hive:
-    //   - Hive1 Adult (stacked), Hive1 Brood (stacked)
-    //   - Hive2 Adult, Hive2 Brood, etc.
-
+    const dates = Object.keys(dateMap).sort((a,b)=>new Date(a)-new Date(b));
     const datasets = [];
     selectedHives.forEach((hiveId, idx) => {
-        const adultData = dates.map(dateKey => {
-            const entry = dateMap[dateKey][hiveId];
-            return entry ? entry.adult : 0;
-        });
-        const broodData = dates.map(dateKey => {
-            const entry = dateMap[dateKey][hiveId];
-            return entry ? entry.brood : 0;
-        });
-        // Adult frames dataset
         datasets.push({
             label: `${hiveId} - Adult`,
-            data: adultData,
-            backgroundColor: `rgba(${(idx * 40) % 255}, ${(idx * 80) % 255}, ${(idx * 120) % 255}, 0.6)`,
-            stack: 'frames'
+            data: dates.map(d=> dateMap[d][hiveId]?.adult||0),
+            backgroundColor:`rgba(${idx*40},${idx*80},${idx*120},0.6)`, stack:'frames'
         });
-        // Brood frames dataset (slightly lighter)
         datasets.push({
             label: `${hiveId} - Brood`,
-            data: broodData,
-            backgroundColor: `rgba(${(idx * 40) % 255}, ${(idx * 80) % 255}, ${(idx * 120) % 255}, 0.3)`,
-            stack: 'frames'
+            data: dates.map(d=> dateMap[d][hiveId]?.brood||0),
+            backgroundColor:`rgba(${idx*40},${idx*80},${idx*120},0.3)`, stack:'frames'
         });
     });
 
     const ctx = document.getElementById('broodAdultChart').getContext('2d');
-    if (broodAdultChart) {
-        broodAdultChart.destroy();
-    }
+    if (broodAdultChart) broodAdultChart.destroy();
     broodAdultChart = new Chart(ctx, {
         type: 'bar',
-        data: {
-            labels: dates,
-            datasets: datasets
-        },
-        options: {
-            responsive: true,
-            scales: {
-                x: { stacked: true, title: { display: true, text: 'Inspection Date' } },
-                y: { stacked: true, title: { display: true, text: 'Frames Count' } }
-            },
-            plugins: {
-                tooltip: { mode: 'index', intersect: false }
-            }
-        }
+        data: { labels: dates, datasets },
+        options: { responsive:true, scales:{ x:{stacked:true}, y:{stacked:true} } }
     });
 }
 
 /**
  * Populate the raw inspection data table.
- * @param {Array} inspections Array of Inspection2021Record
- * @param {Array} selectedHives Array of hive IDs to include
+ * @param {Array} inspections - Array of Inspection2021Record.
+ * @param {Array} selectedHives - Array of hive IDs to include.
  */
 function populateInspectionTable(inspections, selectedHives) {
     const tbody = document.querySelector('#inspectionTable tbody');
-    tbody.innerHTML = ''; // clear existing rows
-
-    // Filter and sort by date ascending
-    const filtered = inspections
+    tbody.innerHTML = '';
+    inspections
         .filter(r => selectedHives.includes(r.tagNumber))
-        .sort((a, b) => new Date(a.date) - new Date(b.date));
-
-    filtered.forEach(r => {
-        const adultFrames = r.fob1st + r.fob2nd + r.fob3rd;
-        const row = document.createElement('tr');
-        row.innerHTML = `
-            <td>${r.date}</td>
-            <td>${r.tagNumber}</td>
-            <td>${r.colonySize}</td>
-            <td>${r.framesOfHoney}</td>
-            <td>${r.foBrood}</td>
-            <td>${adultFrames}</td>
-            <td>${r.queenStatus}</td>
+        .sort((a,b)=> new Date(a.date) - new Date(b.date))
+        .forEach(r => {
+            const adultFrames = r.fob1st + r.fob2nd + r.fob3rd;
+            const row = document.createElement('tr');
+            row.innerHTML = `
+          <td>${r.date}</td>
+          <td>${r.tagNumber}</td>
+          <td>${r.colonySize}</td>
+          <td>${r.framesOfHoney}</td>
+          <td>${r.foBrood}</td>
+          <td>${adultFrames}</td>
+          <td>${r.queenStatus}</td>
         `;
-        tbody.appendChild(row);
+            tbody.appendChild(row);
+        });
+}
+
+/* ------------------------
+   KPI and overview charts
+------------------------ */
+
+/**
+ * Render monthly honey yield as a bar chart.
+ * @param {Array} inspections - Array of Inspection2021Record.
+ */
+function renderHoneyYieldChart(inspections) {
+    const byMonth = {};
+    inspections.forEach(r => {
+        const month = r.date.slice(0,7);
+        byMonth[month] = (byMonth[month] || 0) + r.framesOfHoney;
+    });
+    const labels = Object.keys(byMonth).sort();
+    const dataKg = labels.map(m => (byMonth[m] * 1.5).toFixed(1));
+
+    const ctx = document.getElementById('honeyYieldChart').getContext('2d');
+    if (honeyYieldChart) honeyYieldChart.destroy();
+    honeyYieldChart = new Chart(ctx, {
+        type: 'bar',
+        data: { labels, datasets:[{
+                label:'Honey Yield (kg)', data: dataKg,
+                backgroundColor:'rgba(255,206,86,0.6)'
+            }]},
+        options:{ scales:{ y:{ beginAtZero:true, title:{ text:'kg' } }, x:{ title:{ text:'Month' } } } }
     });
 }
 
 /**
- * Main event listener for "Load 2021 Data" button.
- * Fetches weather, sensor (optional), and inspection data, then renders charts.
+ * Render health index per hive as a percentage bar chart.
+ * HealthIndex = average of normalized colony size, brood ratio, and queen-right flag.
+ * @param {Array} inspections - Array of Inspection2021Record.
  */
+function renderHealthIndexChart(inspections) {
+    const hiveData = {};
+    inspections.forEach(r => {
+        const hive = r.tagNumber;
+        if (!hiveData[hive]) hiveData[hive] = { sizes:[], ratios:[], qrFlags:[] };
+        hiveData[hive].sizes.push(r.colonySize);
+        const adult = r.fob1st + r.fob2nd + r.fob3rd;
+        hiveData[hive].ratios.push(adult>0 ? r.foBrood/adult : 0);
+        hiveData[hive].qrFlags.push(r.queenStatus==='QR' ? 1 : 0);
+    });
+
+    const labels = Object.keys(hiveData);
+    const avgSizes  = labels.map(h=> hiveData[h].sizes.reduce((a,b)=>a+b,0)/hiveData[h].sizes.length);
+    const avgRatios = labels.map(h=> hiveData[h].ratios.reduce((a,b)=>a+b,0)/hiveData[h].ratios.length);
+    const avgFlags  = labels.map(h=> hiveData[h].qrFlags.reduce((a,b)=>a+b,0)/hiveData[h].qrFlags.length);
+
+    const minSize = Math.min(...avgSizes), maxSize = Math.max(...avgSizes);
+    const healthValues = labels.map((_,i) => {
+        const normSize = (avgSizes[i]-minSize)/(maxSize-minSize||1);
+        const normRatio = avgRatios[i];
+        const qrFlag    = avgFlags[i];
+        return Math.round(((normSize+normRatio+qrFlag)/3)*100);
+    });
+
+    const ctx = document.getElementById('healthIndexChart').getContext('2d');
+    if (healthIndexChart) healthIndexChart.destroy();
+    healthIndexChart = new Chart(ctx, {
+        type: 'bar',
+        data:{ labels, datasets:[{
+                label:'Health Index (%)', data: healthValues,
+                backgroundColor:'rgba(75,192,192,0.6)'
+            }]},
+        options:{ scales:{ y:{ beginAtZero:true, max:100, title:{ text:'%' } }, x:{ title:{ text:'Hive ID' } } } }
+    });
+}
+
+/* ------------------------
+   Main event listener
+------------------------ */
 loadDataBtn.addEventListener('click', async () => {
     try {
-        // Get date range and selected hives
-        const startDate = startDateInput.value; // "2021-06-01"
-        const endDate = endDateInput.value;     // "2021-06-30"
-        if (!startDate || !endDate) {
+        if (!startDateInput.value || !endDateInput.value) {
             alert('Please select both start and end dates.');
             return;
         }
-        const selectedOptions = Array.from(hiveSelect.selectedOptions).map(opt => opt.value);
-        if (selectedOptions.length === 0) {
+        const selectedHives = Array.from(hiveSelect.selectedOptions).map(opt => opt.value);
+        if (selectedHives.length === 0) {
             alert('Please select at least one hive.');
             return;
         }
 
-        // Convert to ISO strings for possible filtering (not strictly needed if endpoints return only 2021)
-        const startIso = toMidnightISO(startDate);
-        const endIso   = toMidnightISO(endDate);
-
-        // Fetch all data in parallel
-        const [weatherData, inspectionData] = await Promise.all([
-            fetchWeatherData(),
+        // Fetch all data concurrently
+        const [urbanWeather, inspectionData] = await Promise.all([
+            fetchUrbanWeather(),
             fetchInspectionData()
         ]);
 
-        // Filter weatherData by date range
-        const filteredWeather = weatherData.filter(r => {
-            const dt = new Date(r.dateTime);
+        // Filter by date range
+        const startIso = toMidnightISO(startDateInput.value);
+        const endIso   = toMidnightISO(endDateInput.value);
+        const filteredWeather = urbanWeather.filter(w => {
+            const dt = new Date(w.dateTime);
             return dt >= new Date(startIso) && dt <= new Date(endIso);
         });
 
-        // Filter inspectionData by date range
-        const filteredInspections = inspectionData.filter(r => {
-            const inspectionDt = new Date(r.date + 'T00:00:00');
-            return inspectionDt >= new Date(startIso) && inspectionDt <= new Date(endIso);
+        let filteredInspections = inspectionData.filter(r => {
+            const dt = new Date(r.date + 'T00:00:00');
+            return dt >= new Date(startIso) && dt <= new Date(endIso);
         });
 
-        // Render all charts with filtered data
+        filteredInspections = filteredInspections.filter(r =>
+            selectedHives.includes(r.tagNumber)
+        );
+
+        populateKPIs(filteredInspections);
+
+
+        // Populate KPIs and overview charts
+        populateKPIs(filteredInspections);
+        renderHoneyYieldChart(filteredInspections);
+        renderHealthIndexChart(filteredInspections);
+
+        // Render existing charts
         renderTempHumChart(filteredWeather);
         renderPrecipChart(filteredWeather);
-        renderFramesChart(filteredInspections, selectedOptions);
-        renderColonyChart(filteredInspections, selectedOptions);
+        renderFramesChart(filteredInspections, selectedHives);
+        renderColonyChart(filteredInspections, selectedHives);
         renderQueenStatusChart(filteredInspections);
-        renderBroodAdultChart(filteredInspections, selectedOptions);
-        populateInspectionTable(filteredInspections, selectedOptions);
+        renderBroodAdultChart(filteredInspections, selectedHives);
+        populateInspectionTable(filteredInspections, selectedHives);
 
-    } catch (error) {
-        console.error('Error loading 2021 data:', error);
+    } catch(error) {
+        console.error('Error loading data:', error);
         alert('Failed to load data. Check console for details.');
     }
 });

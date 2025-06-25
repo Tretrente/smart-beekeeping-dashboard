@@ -1,170 +1,163 @@
 <!DOCTYPE html>
-<html>
+<html lang="it" xmlns:th="http://www.thymeleaf.org">
 <head>
     <meta charset="UTF-8" />
-    <title>Smart Beekeeping Dashboard</title>
-    <!-- Bootstrap CSS (from CDN) -->
-    <link
-            href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css"
-            rel="stylesheet" />
-    <!-- Custom CSS (if any) -->
-    <link href="/css/style.css" rel="stylesheet" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Smart Beekeeping</title>
+    <link rel="stylesheet" href="/css/style.css" />
+
+    <!-- Chart.js -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js" defer></script>
+
+    <!-- Thymeleaf JS globals -->
+    <script th:inline="javascript">
+        /*<![CDATA[*/
+        let startDate   = /*[[${defaultStart}]]*/ '2025-06-18';
+        let endDate     = /*[[${defaultEnd}]]*/   '2025-06-25';
+        let hiveIds     = /*[[${defaultHiveIds}]]*/ 'hive1,hive2,hive3';
+        /*]]>*/
+    </script>
+
+    <!-- Your chart initialization code -->
+    <script src="/js/chart.js" defer></script>
 </head>
 <body>
-<div class="container my-4">
-    <h1 class="mb-4">Smart Beekeeping Dashboard (2021 UrBAN Data)</h1>
-
-    <!-- Row: Global Controls -->
-    <div class="row mb-3">
-        <div class="col-md-4">
-            <label for="startDate" class="form-label">Start Date</label>
-            <input
-                    type="date"
-                    id="startDate"
-                    class="form-control"
-                    value="2021-01-01" />
-        </div>
-        <div class="col-md-4">
-            <label for="endDate" class="form-label">End Date</label>
-            <input
-                    type="date"
-                    id="endDate"
-                    class="form-control"
-                    value="2021-12-31" />
-        </div>
-        <div class="col-md-4">
-            <label for="hiveSelect" class="form-label">Select Hive(s)</label>
-            <select id="hiveSelect" class="form-select" multiple>
-                <option value="6"    selected>6</option>
-                <option value="3627" selected>3627</option>
-                <option value="3628" selected>3628</option>
-                <option value="3629" selected>3629</option>
-                <option value="3631" selected>3631</option>
-                <option value="3640" selected>3640</option>
-                <option value="3690" selected>3690</option>
-                <option value="3691" selected>3691</option>
-                <option value="3692" selected>3692</option>
-                <option value="3693" selected>3693</option>
-
-            </select>
-
-        </div>
+<!-- Top navigation bar -->
+<header class="topbar">
+    <div class="brand">
+        <img src="/assets/Logo.png" alt="Smart Beekeeping Logo" class="logo" />
+        <span class="brand-name">Smart Beekeeping</span>
     </div>
+    <div class="toolbar">
+        <label>
+            From&nbsp;
+            <input type="date" class="date-input start" th:value="${defaultStart}" />
+        </label>
+        <label>
+            To&nbsp;
+            <input type="date" class="date-input end" th:value="${defaultEnd}" />
+        </label>
+        <select class="apiary-select">
+            <option th:each="id : ${#strings.arraySplit(defaultHiveIds, ',')}"
+                    th:value="${id}"
+                    th:text="${id}"></option>
+        </select>
+        <button type="button" class="confirm-btn">Confirm</button>
+    </div>
+</header>
 
-    <button id="loadDataBtn" class="btn btn-primary mb-4">Load 2021 Data</button>
+<main>
+    <!-- KPI Section -->
+    <h2 id="kpi-title" class="kpi-title">KPI</h2>
+    <section id="kpi-section" class="kpi-overview">
+        <div class="kpi-card">
+            <div class="chart-wrapper">
+                <canvas id="colonySizeChart"></canvas>
+                <div class="chart-text" id="colonySizeText"></div>
+            </div>
+            <div class="kpi-label">Avg. Colony Size</div>
+        </div>
+        <div class="kpi-card">
+            <div class="chart-wrapper">
+                <canvas id="honeyYieldChart"></canvas>
+                <div class="chart-text" id="honeyYieldText"></div>
+            </div>
+            <div class="kpi-label">Honey Yield (kg)</div>
+        </div>
+        <div class="kpi-card">
+            <div class="chart-wrapper">
+                <canvas id="broodRatioChart"></canvas>
+                <div class="chart-text" id="broodRatioText"></div>
+            </div>
+            <div class="kpi-label">Avg. Brood Ratio</div>
+        </div>
+        <div class="kpi-card">
+            <div class="chart-wrapper">
+                <canvas id="qrPercentChart"></canvas>
+                <div class="chart-text" id="qrPercentText"></div>
+            </div>
+            <div class="kpi-label">QR-Percent (%)</div>
+        </div>
+    </section>
 
-    <!-- ▷ Overview KPI Cards ◁ -->
-    <div class="row mb-4" id="kpi-overview">
-        <div class="col-md-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h5 class="card-title">Total Honey Yield (kg)</h5>
-                    <p class="card-text display-6" id="kpi-honey-yield">–</p>
+    <!-- Environmental Data -->
+    <section class="chart-group">
+        <h2 class="group-title env">Environmental Data</h2>
+        <div class="chart-grid">
+            <div class="chart-card">
+                <h3 class="chart-title">Temperature &amp; Humidity Over Time</h3>
+                <div class="chart-wrapper">
+                    <canvas id="tempHumidityChart"></canvas>
+                </div>
+                <div class="chart-legend">
+                    <div><span class="legend-color temp"></span>Temperature</div>
+                    <div><span class="legend-color hum"></span>Humidity</div>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3 class="chart-title">Precipitation Over Time</h3>
+                <div class="chart-wrapper">
+                    <canvas id="precipitationChart"></canvas>
+                </div>
+                <div class="chart-legend">
+                    <div><span class="legend-color precip"></span>Precipitation</div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h5 class="card-title">Avg. Colony Size</h5>
-                    <p class="card-text display-6" id="kpi-avg-colony-size">–</p>
+    </section>
+
+    <!-- Production & Population -->
+    <section class="chart-group">
+        <h2 class="group-title prod-pop">Production &amp; Population</h2>
+        <div class="chart-grid">
+            <div class="chart-card">
+                <h3 class="chart-title">Frames of Honey per Hive</h3>
+                <div class="chart-wrapper">
+                    <canvas id="honeyFramesChart"></canvas>
+                </div>
+                <div class="chart-legend">
+                    <div><span class="legend-color honey"></span>Honey Frames</div>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3 class="chart-title">Colony Size (Brood Frames) per Hive</h3>
+                <div class="chart-wrapper">
+                    <canvas id="broodFramesChart"></canvas>
+                </div>
+                <div class="chart-legend">
+                    <div><span class="legend-color brood"></span>Brood Frames</div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h5 class="card-title">Avg. Brood-to-Adult Ratio</h5>
-                    <p class="card-text display-6" id="kpi-avg-brood-ratio">–</p>
+    </section>
+
+    <!-- Health & Composition -->
+    <section class="chart-group">
+        <h2 class="group-title health-comp">Health &amp; Composition</h2>
+        <div class="chart-grid">
+            <div class="chart-card">
+                <h3 class="chart-title">Queen Status Distribution</h3>
+                <div class="chart-wrapper">
+                    <canvas id="queenStatusChart"></canvas>
+                </div>
+                <div class="chart-legend">
+                    <div><span class="legend-color active"></span>Active</div>
+                    <div><span class="legend-color replaced"></span>Replaced</div>
+                    <div><span class="legend-color missing"></span>Missing</div>
+                </div>
+            </div>
+            <div class="chart-card">
+                <h3 class="chart-title">Brood vs. Adult Frames per Inspection Date</h3>
+                <div class="chart-wrapper">
+                    <canvas id="stackedFramesChart"></canvas>
+                </div>
+                <div class="chart-legend">
+                    <div><span class="legend-color brood"></span>Brood</div>
+                    <div><span class="legend-color adult"></span>Adult</div>
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
-            <div class="card text-center">
-                <div class="card-body">
-                    <h5 class="card-title">Queen-Right %</h5>
-                    <p class="card-text display-6" id="kpi-qr-percent">–</p>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <div class="row mb-5">
-        <div class="col-md-6">
-            <h4>Monthly Honey Yield</h4>
-            <canvas id="honeyYieldChart" width="600" height="300"></canvas>
-        </div>
-        <div class="col-md-6">
-            <h4>Health Index per Hive</h4>
-            <canvas id="healthIndexChart" width="600" height="300"></canvas>
-        </div>
-    </div>
-
-
-
-    <!-- Row 1: Environmental Charts -->
-    <div class="row mb-5">
-        <div class="col-md-8">
-            <h4>Temperature &amp; Humidity Over Time</h4>
-            <canvas id="tempHumChart" width="800" height="400"></canvas>
-        </div>
-        <div class="col-md-4">
-            <h4>Precipitation Over Time</h4>
-            <canvas id="precipChart" width="400" height="400"></canvas>
-        </div>
-    </div>
-
-    <!-- Row 2: Production & Population -->
-    <div class="row mb-5">
-        <div class="col-md-6">
-            <h4>Frames of Honey per Hive</h4>
-            <canvas id="framesChart" width="600" height="400"></canvas>
-        </div>
-        <div class="col-md-6">
-            <h4>Colony Size (Brood Frames) per Hive</h4>
-            <canvas id="colonyChart" width="600" height="400"></canvas>
-        </div>
-    </div>
-
-    <!-- Row 3: Health & Composition -->
-    <div class="row mb-5">
-        <div class="col-md-4">
-            <h4>Queen Status Distribution</h4>
-            <canvas id="queenStatusChart" width="300" height="300"></canvas>
-        </div>
-        <div class="col-md-8">
-            <h4>Brood vs. Adult Frames (Stacked) per Inspection Date</h4>
-            <canvas id="broodAdultChart" width="800" height="400"></canvas>
-        </div>
-    </div>
-
-    <!-- Row 4: Raw Data Table (Optional) -->
-    <div class="row mb-5">
-        <div class="col-12">
-            <h4>Raw Inspection Data (2021)</h4>
-            <table id="inspectionTable" class="table table-striped table-sm">
-                <thead>
-                <tr>
-                    <th>Date</th>
-                    <th>Hive ID</th>
-                    <th>Colony Size</th>
-                    <th>Frames of Honey</th>
-                    <th>Brood Frames</th>
-                    <th>Adult Frames</th>
-                    <th>Queen Status</th>
-                </tr>
-                </thead>
-                <tbody>
-                <!-- Populated dynamically by JavaScript -->
-                </tbody>
-            </table>
-        </div>
-    </div>
-</div>
-
-<!-- Chart.js from CDN -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
-<!-- Custom JavaScript -->
-<script src="/js/dashboard.js"></script>
+    </section>
+</main>
 </body>
 </html>

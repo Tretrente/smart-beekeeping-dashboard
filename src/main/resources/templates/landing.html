@@ -1,0 +1,94 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Smart Beekeeping</title>
+  <link rel="stylesheet" href="/css/landing.css" />
+  <link
+          href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@300;400;600;700&display=swap"
+          rel="stylesheet"
+  />
+</head>
+<body>
+
+<!-- Toolbar with logo and dashboard link -->
+<header class="toolbar">
+  <img src="/assets/Logo.png" alt="Smart Beekeeping Logo" class="toolbar-logo" />
+  <button class="dashboard-btn" onclick="location.href='/dashboard'">
+    Go to Dashboard
+  </button>
+</header>
+
+<!-- Hero section -->
+<section class="hero container">
+  <div class="hero-text">
+    <h1 class="hero-title">Smart Beekeeping</h1>
+    <p class="hero-subtitle">
+      Project Work by Petru Paul Ailioae for a Bachelor’s in IT for Digital
+      Businesses at Unipegaso. Uses real UrBAN data (MIT License © 2024 Massi331).
+    </p>
+  </div>
+  <div class="hero-logo">
+    <img src="/assets/Logo.png" alt="Beehive Logo" />
+  </div>
+</section>
+
+<!-- About the Project -->
+<section id="about" class="section container">
+  <h2>About the Project</h2>
+  <p>
+    This dashboard integrates environmental (temperature, humidity,
+    precipitation) and inspection (colony size, brood frames, queen status)
+    data from the UrBAN dataset to provide urban beekeepers with clear,
+    actionable insights.
+    By visualizing trends and health scores across multiple hives, users
+    can optimize hive management, improve honey yield, and react promptly
+    to critical conditions.
+  </p>
+</section>
+
+<!-- Features -->
+<section id="features" class="section container">
+  <h2>Features</h2>
+  <div class="features-grid">
+    <div class="feature-card">
+      <h3>Real-Time Monitoring</h3>
+      <p>Live tracking of hive temperature, humidity, and precipitation.</p>
+    </div>
+    <div class="feature-card">
+      <h3>Insights</h3>
+      <p>Benchmark hive health scores and rank colonies</p>
+    </div>
+    <div class="feature-card">
+      <h3>Reporting &amp; Export</h3>
+      <p>Download data snapshots in CSV for record-keeping.</p>
+    </div>
+  </div>
+</section>
+
+<!-- Technology -->
+<section id="technology" class="section container">
+  <h2>Technology</h2>
+  <div class="tech-grid">
+    <div class="tech-card">
+      <h3>Java &amp; Spring Boot</h3>
+      <p>Robust backend REST API and data processing engine.</p>
+    </div>
+    <div class="tech-card">
+      <h3>Thymeleaf Templates</h3>
+      <p>Server-rendered views with dynamic data binding.</p>
+    </div>
+    <div class="tech-card">
+      <h3>Chart.js</h3>
+      <p>Interactive, responsive charts for data visualization.</p>
+    </div>
+    <div class="tech-card">
+      <h3>MIT-Licensed UrBAN Dataset</h3>
+      <p>Urban Beehive Acoustics &amp; Phenotyping environmental data.</p>
+    </div>
+  </div>
+</section>
+
+</body>
+</html>

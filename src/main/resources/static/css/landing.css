@@ -1,0 +1,145 @@
+/* Reset */
+* {
+    margin: 0; padding: 0; box-sizing: border-box;
+}
+
+body {
+    font-family: "Open Sans", sans-serif;
+    background: #f9f9f9;
+    color: #333333;
+}
+
+/* Centered content container */
+.container {
+    max-width: 1000px;
+    margin: 0 auto;
+    padding: 1rem;
+}
+
+/* Toolbar */
+.toolbar {
+    background: #333333;
+    color: #ffffff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem 1.5rem;
+}
+.toolbar-logo {
+    height: 40px;
+}
+.dashboard-btn {
+    background: #4CAF50;
+    color: #ffffff;
+    border: none;
+    padding: 0.5rem 1rem;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.9rem;
+}
+.dashboard-btn:hover {
+    background: #45A049;
+}
+
+/* Hero */
+.hero {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 1.5rem;
+}
+.hero-text {
+    flex: 1 1 400px;
+}
+.hero-title {
+    font-size: 6rem;
+    color: #FFB300;
+}
+.hero-subtitle {
+    margin-top: 0.5rem;
+    font-weight: bold;
+    line-height: 1.4;
+}
+.hero-logo {
+    flex: 1 1 300px;
+    text-align: right;
+}
+.hero-logo img {
+    max-width: 90%;
+    height: auto;
+}
+
+/* Section headings */
+.section h2 {
+    font-size: 3rem;
+    color: #FFB300;
+    text-align: center;
+    margin-bottom: 0.75rem;
+}
+
+/* Section paragraphs */
+.section p {
+    background: #ffffff;
+    padding: 1rem;
+    border-radius: 4px;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+    line-height: 1.6;
+    text-align: center;
+    margin-bottom: 2rem;
+}
+
+/* Features grid */
+.features-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+.feature-card {
+    background: #ffffff;
+    border-left: 4px solid #FFB300;
+    border-radius: 4px;
+    padding: 1rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+.feature-card h3 {
+    margin-bottom: 0.5rem;
+    text-align: center;
+}
+.feature-card p {
+    color: #555555;
+    font-size: 0.95rem;
+}
+
+/* Technology grid */
+.tech-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+}
+.tech-card {
+    background: #ffffff;
+    border-left: 4px solid #8D6E63; /* amber brown */
+    border-radius: 4px;
+    padding: 1rem;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+}
+.tech-card h3 {
+    margin-bottom: 0.5rem;
+    text-align: center;
+}
+.tech-card p {
+    color: #555555;
+    font-size: 0.95rem;
+}
+
+/* Responsive adjustments */
+@media (max-width: 600px) {
+    .hero {
+        flex-direction: column;
+        text-align: center;
+    }
+    .hero-logo {
+        text-align: center;
+    }
+}

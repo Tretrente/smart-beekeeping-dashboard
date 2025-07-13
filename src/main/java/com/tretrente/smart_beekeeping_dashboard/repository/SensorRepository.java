@@ -11,6 +11,7 @@ import java.io.BufferedReader;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
@@ -22,17 +23,15 @@ import java.util.List;
 public class SensorRepository {
 
     // Path to the 2021 sensor CSV
-    private static final String CSV_PATH = "data/urban/temperature_humidity/sensor_2021.csv";
-
-    // Formatter for timestamps in format "yyyy-MM-dd HH:mm:ss"
-    private static final DateTimeFormatter FORMATTER =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+    private static final String CSV_PATH = "data/urban/sensor_2021.csv";
 
     /**
-     * Reads all rows from sensor_2021.csv and returns a list of SensorRecord.
+     * Formatter for timestamps in format "yyyy-MM-dd HH:mm:ssXXX",
      *
-     * @return List of SensorRecord for 2021
      */
+    private static final DateTimeFormatter FORMATTER =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssXXX");
+
     public List<SensorRecord> findAll() {
         List<SensorRecord> result = new ArrayList<>();
 
@@ -42,7 +41,6 @@ public class SensorRepository {
                     new InputStreamReader(resource.getInputStream(), StandardCharsets.UTF_8)
             );
 
-            // Build CSVFormat and parse
             CSVFormat format = CSVFormat.DEFAULT
                     .withFirstRecordAsHeader()
                     .withIgnoreHeaderCase()
@@ -51,12 +49,14 @@ public class SensorRepository {
             CSVParser parser = format.parse(reader);
 
             for (CSVRecord record : parser) {
-                String dateStr = record.get("Date");       // e.g. "2021-06-01 00:00:00"
+                String dateStr = record.get("Date");
+                OffsetDateTime odt = OffsetDateTime.parse(dateStr, FORMATTER);
+                LocalDateTime dateTime = odt.toLocalDateTime();
+
                 String tagNumber = record.get("Tag number");
-                double temp = Double.parseDouble(record.get("temperature"));
+                double temp     = Double.parseDouble(record.get("temperature"));
                 double humidity = Double.parseDouble(record.get("humidity"));
 
-                LocalDateTime dateTime = LocalDateTime.parse(dateStr, FORMATTER);
                 SensorRecord sr = new SensorRecord(dateTime, tagNumber, temp, humidity);
                 result.add(sr);
             }

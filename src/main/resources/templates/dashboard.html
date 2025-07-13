@@ -43,6 +43,15 @@
                     th:text="${id}"></option>
         </select>
         <button type="button" class="confirm-btn">Confirm</button>
+        <select id="exportTypeSelect" class="apiary-select">
+            <option value="inspections">Inspections</option>
+            <option value="sensor">Sensor</option>
+            <option value="weather">Weather</option>
+        </select>
+
+        <button type="button" id="downloadCsvBtn" class="confirm-btn">
+            Download CSV
+        </button>
     </div>
 </header>
 

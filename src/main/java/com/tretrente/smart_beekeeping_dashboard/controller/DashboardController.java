@@ -19,7 +19,7 @@ public class DashboardController {
      * @param model Model object to pass attributes to the template
      * @return Name of the Thymeleaf template (dashboard.html)
      */
-    @GetMapping("/")
+    @GetMapping("/dashboard")
     public String showDashboard(Model model) {
         model.addAttribute("defaultHiveIds", "hive1,hive2,hive3");
         LocalDate today = LocalDate.now();
